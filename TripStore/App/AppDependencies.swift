@@ -13,6 +13,7 @@ final class AppDependencies {
     let modelContainer: ModelContainer
     let favoritesRepository: FavoritesRepository
     let favoritesStore: FavoritesStore
+    let ordersRepository: OrdersRepository
 
     init() {
         let apiClient = URLSessionAPIClient()
@@ -24,9 +25,10 @@ final class AppDependencies {
         // A fixed, static schema can only fail to load here if the device's
         // storage itself is unusable — there is no valid fallback UI state
         // for that, so this is one of the few justified force-tries.
-        let modelContainer = try! ModelContainer(for: FavoriteRecord.self)
+        let modelContainer = try! ModelContainer(for: FavoriteRecord.self, OrderRecord.self)
         self.modelContainer = modelContainer
         self.favoritesRepository = SwiftDataFavoritesRepository(modelContainer: modelContainer)
         self.favoritesStore = FavoritesStore(repository: favoritesRepository)
+        self.ordersRepository = SwiftDataOrdersRepository(modelContainer: modelContainer)
     }
 }

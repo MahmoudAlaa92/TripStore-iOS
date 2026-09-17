@@ -5,10 +5,12 @@ struct CatalogueView: View {
     @EnvironmentObject private var favoritesStore: FavoritesStore
     @State private var isShowingFilters = false
 
+    private let ordersRepository: OrdersRepository
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
-    init(viewModel: @autoclosure @escaping () -> CatalogueViewModel) {
+    init(viewModel: @autoclosure @escaping () -> CatalogueViewModel, ordersRepository: OrdersRepository) {
         _viewModel = StateObject(wrappedValue: viewModel())
+        self.ordersRepository = ordersRepository
     }
 
     var body: some View {
@@ -32,6 +34,9 @@ struct CatalogueView: View {
                 }
                 .navigationDestination(for: Product.self) { product in
                     ProductDetailsView(product: product)
+                }
+                .navigationDestination(for: OrderDraft.self) { draft in
+                    OrderConfirmationView(draft: draft, ordersRepository: ordersRepository)
                 }
                 .task { await viewModel.loadInitial() }
         }
