@@ -73,6 +73,37 @@ final class CatalogueViewModelTests: XCTestCase {
         XCTAssertEqual(queryCount, 2)
     }
 
+    func test_setSortOption_sendsCorrespondingSortAndOrderToRepository() async {
+        let repository = MockProductsRepository()
+        await repository.setResponseProvider { _, _, _ in .empty }
+        let viewModel = CatalogueViewModel(repository: repository, categoriesRepository: MockCategoriesRepository())
+        await viewModel.loadInitial()
+
+        await viewModel.setSortOption(.priceDescending)
+
+        let queries = await repository.receivedQueries
+        XCTAssertEqual(queries.last?.sortOption, .priceDescending)
+        XCTAssertTrue(viewModel.hasActiveFilters)
+    }
+
+    /// Verifies the transient `.loading` state is actually observable, not
+    /// just skipped over between idle and loaded.
+    func test_loadInitial_setsLoadingStateWhileRequestIsInFlight() async {
+        let repository = MockProductsRepository()
+        await repository.setResponseProvider { _, _, _ in
+            try await Task.sleep(nanoseconds: 50_000_000)
+            return .empty
+        }
+        let viewModel = CatalogueViewModel(repository: repository, categoriesRepository: MockCategoriesRepository())
+
+        let loadTask = Task { await viewModel.loadInitial() }
+        try? await Task.sleep(nanoseconds: 10_000_000)
+
+        XCTAssertEqual(viewModel.loadState, .loading)
+        await loadTask.value
+        XCTAssertEqual(viewModel.loadState, .loaded)
+    }
+
     func test_resetFilters_clearsAllStateAndReloads() async {
         let repository = MockProductsRepository()
         await repository.setResponseProvider { _, _, _ in
