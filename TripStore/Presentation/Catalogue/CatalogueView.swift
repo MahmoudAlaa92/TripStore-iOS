@@ -29,6 +29,9 @@ struct CatalogueView: View {
                 .sheet(isPresented: $isShowingFilters) {
                     FilterSheet(viewModel: viewModel)
                 }
+                .navigationDestination(for: Product.self) { product in
+                    ProductDetailsView(product: product)
+                }
                 .task { await viewModel.loadInitial() }
         }
     }
@@ -96,10 +99,13 @@ struct CatalogueView: View {
 
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(viewModel.displayedProducts) { product in
-                    ProductCard(product: product)
-                        .onAppear {
-                            Task { await viewModel.loadMoreIfNeeded(currentItem: product) }
-                        }
+                    NavigationLink(value: product) {
+                        ProductCard(product: product)
+                    }
+                    .buttonStyle(.plain)
+                    .onAppear {
+                        Task { await viewModel.loadMoreIfNeeded(currentItem: product) }
+                    }
                 }
             }
             .padding(12)
