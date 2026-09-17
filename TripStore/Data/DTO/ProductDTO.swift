@@ -41,9 +41,9 @@ extension ProductDTO {
         guard let id else { return nil }
         return Product(
             id: id,
-            title: title?.isEmpty == false ? title! : "Untitled product",
+            title: title.flatMap { $0.isEmpty ? nil : $0 } ?? "Untitled product",
             description: description ?? "",
-            category: category?.isEmpty == false ? category! : "Uncategorized",
+            category: category.flatMap { $0.isEmpty ? nil : $0 } ?? "Uncategorized",
             price: max(price ?? 0, 0),
             rating: min(max(rating ?? 0, 0), 5),
             stock: max(stock ?? 0, 0),
