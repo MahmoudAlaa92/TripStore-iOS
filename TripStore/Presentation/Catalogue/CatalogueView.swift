@@ -100,14 +100,25 @@ struct CatalogueView: View {
 
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(viewModel.displayedProducts) { product in
-                    NavigationLink(value: product) {
-                        ProductCard(
-                            product: product,
+                    ZStack(alignment: .topTrailing) {
+                        NavigationLink(value: product) {
+                            ProductCard(product: product)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Kept as a sibling of the NavigationLink (not nested
+                        // inside its label) — a Button nested in a
+                        // NavigationLink's label can end up triggering both
+                        // the button action and the navigation from a single
+                        // tap, which would favorite *and* navigate at once.
+                        FavoriteButton(
                             isFavorite: favoritesStore.isFavorite(product.id),
-                            onToggleFavorite: { Task { await favoritesStore.toggle(product) } }
+                            action: { Task { await favoritesStore.toggle(product) } }
                         )
+                        .padding(6)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .padding(16)
                     }
-                    .buttonStyle(.plain)
                     .onAppear {
                         Task { await viewModel.loadMoreIfNeeded(currentItem: product) }
                     }

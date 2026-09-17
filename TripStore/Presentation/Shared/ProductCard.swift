@@ -2,21 +2,12 @@ import SwiftUI
 
 struct ProductCard: View {
     let product: Product
-    let isFavorite: Bool
-    let onToggleFavorite: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ZStack(alignment: .topTrailing) {
-                ProductImageView(url: product.thumbnailURL)
-                    .frame(height: 130)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                FavoriteButton(isFavorite: isFavorite, action: onToggleFavorite)
-                    .padding(6)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .padding(6)
-            }
+            ProductImageView(url: product.thumbnailURL)
+                .frame(height: 130)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             infoStack
         }
