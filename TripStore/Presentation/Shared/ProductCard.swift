@@ -2,13 +2,31 @@ import SwiftUI
 
 struct ProductCard: View {
     let product: Product
+    let isFavorite: Bool
+    let onToggleFavorite: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ProductImageView(url: product.thumbnailURL)
-                .frame(height: 130)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            ZStack(alignment: .topTrailing) {
+                ProductImageView(url: product.thumbnailURL)
+                    .frame(height: 130)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
+                FavoriteButton(isFavorite: isFavorite, action: onToggleFavorite)
+                    .padding(6)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .padding(6)
+            }
+
+            infoStack
+        }
+        .padding(10)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var infoStack: some View {
+        VStack(alignment: .leading, spacing: 6) {
             Text(product.category.capitalized)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -32,19 +50,6 @@ struct ProductCard: View {
                 }
             }
         }
-        .padding(10)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(.isButton)
-    }
-
-    private var accessibilityLabel: String {
-        var parts = [product.title, product.category]
-        parts.append(String(format: "Rating %.1f out of 5", product.rating))
-        parts.append(product.price.formatted(.currency(code: "USD")))
-        if !product.isInStock { parts.append("Out of stock") }
-        return parts.joined(separator: ", ")
+        .accessibilityElement(children: .combine)
     }
 }

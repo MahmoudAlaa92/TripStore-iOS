@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CatalogueView: View {
     @StateObject private var viewModel: CatalogueViewModel
+    @EnvironmentObject private var favoritesStore: FavoritesStore
     @State private var isShowingFilters = false
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
@@ -100,7 +101,11 @@ struct CatalogueView: View {
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(viewModel.displayedProducts) { product in
                     NavigationLink(value: product) {
-                        ProductCard(product: product)
+                        ProductCard(
+                            product: product,
+                            isFavorite: favoritesStore.isFavorite(product.id),
+                            onToggleFavorite: { Task { await favoritesStore.toggle(product) } }
+                        )
                     }
                     .buttonStyle(.plain)
                     .onAppear {

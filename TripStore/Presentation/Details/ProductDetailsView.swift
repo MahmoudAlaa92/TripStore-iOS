@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProductDetailsView: View {
     @StateObject private var viewModel: ProductDetailsViewModel
+    @EnvironmentObject private var favoritesStore: FavoritesStore
 
     init(product: Product) {
         _viewModel = StateObject(wrappedValue: ProductDetailsViewModel(product: product))
@@ -62,8 +63,8 @@ struct ProductDetailsView: View {
                     .font(.title3.weight(.semibold))
             }
             Spacer()
-            FavoriteButton(isFavorite: viewModel.isFavorite) {
-                viewModel.toggleFavorite()
+            FavoriteButton(isFavorite: favoritesStore.isFavorite(viewModel.product.id)) {
+                Task { await favoritesStore.toggle(viewModel.product) }
             }
             .font(.title2)
         }

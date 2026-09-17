@@ -5,7 +5,6 @@ final class ProductDetailsViewModel: ObservableObject {
     let product: Product
 
     @Published var quantity: Int
-    @Published private(set) var isFavorite: Bool = false
 
     init(product: Product) {
         self.product = product
@@ -26,10 +25,5 @@ final class ProductDetailsViewModel: ObservableObject {
 
     func decreaseQuantity() {
         quantity = QuantityValidator.clamp(quantity - 1, stock: product.stock)
-    }
-
-    /// Local-only for now; wired to persisted favourites in a later phase.
-    func toggleFavorite() {
-        isFavorite.toggle()
     }
 }
