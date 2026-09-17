@@ -10,7 +10,10 @@ struct TripStoreApp: App {
 
     var body: some Scene {
         WindowGroup {
-            CatalogueView(viewModel: CatalogueViewModel(repository: dependencies.productsRepository))
+            CatalogueView(viewModel: CatalogueViewModel(
+                repository: dependencies.productsRepository,
+                categoriesRepository: dependencies.categoriesRepository
+            ))
         }
     }
 }

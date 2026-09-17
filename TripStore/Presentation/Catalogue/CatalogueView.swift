@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CatalogueView: View {
     @StateObject private var viewModel: CatalogueViewModel
+    @State private var isShowingFilters = false
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
@@ -13,6 +14,21 @@ struct CatalogueView: View {
         NavigationStack {
             content
                 .navigationTitle("TripStore")
+                .searchable(text: $viewModel.searchText, prompt: "Search products")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            isShowingFilters = true
+                        } label: {
+                            Image(systemName: viewModel.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        }
+                        .accessibilityLabel("Filter and sort")
+                        .accessibilityHint(viewModel.hasActiveFilters ? "Filters are active" : "No filters active")
+                    }
+                }
+                .sheet(isPresented: $isShowingFilters) {
+                    FilterSheet(viewModel: viewModel)
+                }
                 .task { await viewModel.loadInitial() }
         }
     }
@@ -42,14 +58,29 @@ struct CatalogueView: View {
 
         case .loaded:
             if viewModel.isEmpty {
-                EmptyStateView(
-                    systemImage: "bag",
-                    title: "No products found",
-                    message: "The catalogue is empty right now."
-                )
+                emptyState
             } else {
                 productGrid
             }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if viewModel.hasActiveFilters {
+            EmptyStateView(
+                systemImage: "magnifyingglass",
+                title: "No matches",
+                message: "No products match your search and filters.",
+                actionTitle: "Reset filters",
+                action: { Task { await viewModel.resetFilters() } }
+            )
+        } else {
+            EmptyStateView(
+                systemImage: "bag",
+                title: "No products found",
+                message: "The catalogue is empty right now."
+            )
         }
     }
 
@@ -59,8 +90,12 @@ struct CatalogueView: View {
                 OfflineBanner()
             }
 
+            if viewModel.hasActiveFilters {
+                activeFiltersBar
+            }
+
             LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(viewModel.products) { product in
+                ForEach(viewModel.displayedProducts) { product in
                     ProductCard(product: product)
                         .onAppear {
                             Task { await viewModel.loadMoreIfNeeded(currentItem: product) }
@@ -75,5 +110,20 @@ struct CatalogueView: View {
             }
         }
         .refreshable { await viewModel.refresh() }
+    }
+
+    private var activeFiltersBar: some View {
+        HStack {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+            Text("Filters active")
+                .font(.footnote.weight(.medium))
+            Spacer()
+            Button("Reset") { Task { await viewModel.resetFilters() } }
+                .font(.footnote.weight(.semibold))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .foregroundStyle(Color.accentColor)
+        .accessibilityElement(children: .combine)
     }
 }
