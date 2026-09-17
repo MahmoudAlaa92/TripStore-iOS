@@ -10,8 +10,7 @@ struct TripStoreApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Text("TripStore")
-                .font(.largeTitle)
+            CatalogueView(viewModel: CatalogueViewModel(repository: dependencies.productsRepository))
         }
     }
 }
