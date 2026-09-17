@@ -41,6 +41,7 @@ struct OrderConfirmationView: View {
             ProductImageView(url: viewModel.product.thumbnailURL)
                 .frame(width: 64, height: 64)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(viewModel.product.title)

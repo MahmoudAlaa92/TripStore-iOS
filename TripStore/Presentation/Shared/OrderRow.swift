@@ -8,6 +8,7 @@ struct OrderRow: View {
             ProductImageView(url: order.productThumbnailURL)
                 .frame(width: 56, height: 56)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(order.productTitle)

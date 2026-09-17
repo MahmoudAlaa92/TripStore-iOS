@@ -40,10 +40,12 @@ struct ProductDetailsView: View {
     }
 
     private var gallery: some View {
-        TabView {
-            ForEach(viewModel.product.galleryURLs, id: \.self) { url in
+        let urls = viewModel.product.galleryURLs
+        return TabView {
+            ForEach(Array(urls.enumerated()), id: \.offset) { index, url in
                 ProductImageView(url: url)
                     .clipped()
+                    .accessibilityLabel("Photo \(index + 1) of \(urls.count)")
             }
         }
         .tabViewStyle(.page)

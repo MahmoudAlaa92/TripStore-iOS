@@ -8,6 +8,7 @@ struct ProductCard: View {
             ProductImageView(url: product.thumbnailURL)
                 .frame(height: 130)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .accessibilityHidden(true)
 
             infoStack
         }
