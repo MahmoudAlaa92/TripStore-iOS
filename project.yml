@@ -2,7 +2,7 @@ name: TripStore
 options:
   bundleIdPrefix: com.tripstore
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "16.0"
   createIntermediateGroups: true
   generateEmptyDirectories: false
 
@@ -18,7 +18,7 @@ targets:
   TripStore:
     type: application
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "16.0"
     sources:
       - path: TripStore
     resources:
@@ -41,7 +41,7 @@ targets:
   TripStoreTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "16.0"
     sources:
       - path: TripStoreTests
     dependencies:
