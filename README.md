@@ -1,239 +1,406 @@
 # TripStore
 
-A travel-accessories catalogue app: browse, search, filter, sort, favourite,
-and place local booking-style orders against the [dummyjson](https://dummyjson.com/products)
-products API. Built as an iOS take-home submission.
+A travel-accessories catalogue app built as an iOS take-home assignment.
+
+TripStore allows users to browse products, search and filter the catalogue, sort results, view product details, manage favourites, and create local booking-style orders using the DummyJSON Products API.
+
+## Features
+
+* Product catalogue with pagination
+* Debounced product search
+* Category and minimum-rating filters
+* Price and rating sorting
+* Pull-to-refresh
+* Loading, empty, error, and retry states
+* Product details with image gallery
+* Stock-aware quantity selection
+* Live order total calculation
+* Favourites persisted locally
+* Local order confirmation and order history
+* Offline fallback for the cached first catalogue page
+* Defensive API and persistence decoding
+* Automated unit and integration-style tests
+
+## Tech Stack
+
+* **Swift 5.9+**
+* **SwiftUI**
+* **iOS 16+**
+* **Xcode 16+**
+* **Core Data**
+* **URLSession**
+* **Swift Concurrency (`async/await`)**
+* **XcodeGen**
 
 ## Setup
 
-Requirements: Xcode 16+, iOS 17+ simulator, [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-(`brew install xcodegen`).
+### Requirements
+
+* Xcode 16+
+* iOS 16+ Simulator
+* Homebrew
+* XcodeGen
+
+Install XcodeGen if it is not already installed:
+
+```bash
+brew install xcodegen
+```
+
+### Generate the Xcode project
+
+The repository contains `project.yml` rather than a committed `.xcodeproj`. Generate the Xcode project with:
 
 ```bash
 xcodegen generate
+```
+
+Then open the project:
+
+```bash
 open TripStore.xcodeproj
 ```
 
-The `.xcodeproj` is generated from [`project.yml`](project.yml) and is
-gitignored — regenerate it any time the project structure changes. Run the
-`TripStore` scheme on an iOS 17+ simulator; run tests with `Cmd+U` or:
+Select the `TripStore` scheme and an iOS 16+ simulator, then run with:
+
+```text
+⌘ + R
+```
+
+### Run tests
+
+From Xcode:
+
+```text
+⌘ + U
+```
+
+Or from Terminal:
 
 ```bash
-xcodebuild -project TripStore.xcodeproj -scheme TripStore \
+xcodebuild -project TripStore.xcodeproj \
+  -scheme TripStore \
   -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
 
+If the selected simulator has a different name, replace `iPhone 17` with the installed simulator name.
+
 ## Architecture
 
-MVVM + Clean Architecture, three layers, dependencies point inward:
+The project follows **MVVM + Clean Architecture** with three main layers:
 
-```
+```text
 Presentation  →  Domain  ←  Data
-(SwiftUI Views,    (Entities,     (DTOs, URLSession,
- ViewModels)        Use Cases,     SwiftData,
-                     Repository     Repository
-                     protocols)     implementations)
 ```
 
-- **Domain** has no dependency on SwiftUI, URLSession, or SwiftData — it's
-  entities (`Product`, `Order`, ...), pure calculations (`PricingCalculator`,
-  `QuantityValidator`, `ProductRatingFilter`), and repository *protocols*
-  (`ProductsRepository`, `FavoritesRepository`, `OrdersRepository`,
-  `CategoriesRepository`).
-- **Data** implements those protocols: `DefaultProductsRepository` +
-  `URLSessionAPIClient` for the network, `SwiftDataFavoritesRepository` /
-  `SwiftDataOrdersRepository` for persistence. DTOs (`ProductDTO`, ...) are
-  the only place remote JSON shape is known; everything past `toDomain()`
-  deals only in domain entities.
-- **Presentation** is SwiftUI views + `@MainActor` `ObservableObject`
-  view models. Views hold no business logic — quantity clamping, pricing,
-  and duplicate-order prevention all live in the Domain layer or the view
-  model, never inline in a `View`.
+### Presentation
 
-### Folder structure
+Contains SwiftUI views and `@MainActor` view models.
 
-```
+Responsibilities include:
+
+* UI state
+* User interactions
+* Navigation
+* Calling domain/repository interfaces
+* Presenting loading, empty, error, and success states
+
+Views are kept focused on presentation rather than business rules.
+
+### Domain
+
+Contains application business logic and abstractions:
+
+* Entities
+* Use cases
+* Validation
+* Pricing calculations
+* Repository protocols
+
+The Domain layer does not depend on SwiftUI, URLSession, or Core Data.
+
+### Data
+
+Contains implementations for external data sources and persistence:
+
+* API client
+* DTOs
+* Network endpoints
+* Catalogue cache
+* Core Data stack
+* Repository implementations
+
+Remote API models are mapped to domain entities through DTO mapping, keeping API-specific details outside the Domain layer.
+
+## Project Structure
+
+```text
 TripStore/
-  App/            Composition root (AppDependencies), RootTabView, entry point
-  Domain/
-    Entities/     Product, Order, CataloguePage, CatalogueQuery, AppError, ...
-    UseCases/     PricingCalculator, QuantityValidator, ProductRatingFilter, ...
-    Repositories/ Protocols only
-  Data/
-    DTO/          Defensive-decoding wire types + toDomain() mapping
-    Network/      Endpoint, APIClient protocol, URLSessionAPIClient
-    Cache/        FileCatalogueCache (offline baseline)
-    Persistence/  SwiftData @Model types (FavoriteRecord, OrderRecord)
-    Repositories/ Concrete repository implementations
-  Presentation/
-    Catalogue/ Details/ Order/ Favorites/ OrderHistory/   one screen each
-    Shared/    Reusable components (ProductCard, RatingView, QuantitySelector, ...)
+├── App/
+│   ├── AppDependencies
+│   ├── RootTabView
+│   └── TripStoreApp
+│
+├── Domain/
+│   ├── Entities/
+│   ├── UseCases/
+│   └── Repositories/
+│
+├── Data/
+│   ├── DTO/
+│   ├── Network/
+│   ├── Cache/
+│   ├── Persistence/
+│   └── Repositories/
+│
+└── Presentation/
+    ├── Catalogue/
+    ├── Details/
+    ├── Order/
+    ├── Favorites/
+    ├── OrderHistory/
+    └── Shared/
+
 TripStoreTests/
-  Domain/ Data/ Presentation/   mirrors the app's structure
-  Mocks/                        MockAPIClient, MockProductsRepository, ...
+├── Domain/
+├── Data/
+├── Presentation/
+└── Mocks/
 ```
 
-### Dependency injection
+## Dependency Injection
 
-`AppDependencies` (`App/AppDependencies.swift`) is a plain constructor-
-injection container built once in `TripStoreApp.init`. It owns the
-`URLSessionAPIClient`, the `ModelContainer`, and every repository, and
-hands out concrete types *behind their protocol*. Views/view models never
-reach into a singleton — everything is passed through initializers
-(`CatalogueViewModel(repository:categoriesRepository:)`,
-`ProductDetailsView(product:)`, ...), so tests substitute mocks without
-touching this container at all. `FavoritesStore` is the one shared
-instance (via `.environmentObject`) because favourite state must be
-consistent across the Catalogue, Details, and Favorites screens by
-construction, not by convention.
+Dependencies are assembled in `AppDependencies` and injected into the relevant repositories and view models.
 
-### Networking
+The application does not rely on a global service locator or singleton-based dependency graph.
 
-`URLSession` only — no third-party networking library. `Endpoint` builds
-requests against `https://dummyjson.com` (`/products`, `/products/search`,
-`/products/category/{name}`, `/products/categories`); `URLSessionAPIClient`
-is the only type that touches `URLSession` and maps every failure mode
-(no connection, timeout, non-2xx status, decoding, cancellation) into the
-`AppError` taxonomy so nothing above the Data layer ever sees a raw
-`URLError`/`DecodingError`. DTOs decode every field defensively
-(`decodeIfPresent` + safe fallbacks) — a missing or malformed field from
-the API degrades to a sane default (`"Untitled product"`, price 0,
-skipped image URL, ...) instead of crashing the decode.
+This keeps production dependencies replaceable with mocks during testing.
 
-### Concurrency
+`FavoritesStore` is shared through SwiftUI's environment because favourite state needs to remain consistent between catalogue, product details, and favourites screens.
 
-Swift concurrency (`async`/`await`) throughout; all view models are
-`@MainActor`, all SwiftData repositories are `@ModelActor` actors so
-persistence work stays off the main actor.
+## Networking
 
-**Search/filter latest-query-wins**: `CatalogueViewModel` stamps every
-`reload()` with a fresh request ID before awaiting the network call. When
-the response comes back, it's discarded unless that ID is still the
-current one — so a slower, *earlier* request can never overwrite a
-faster, *later* one, regardless of network timing. The same guard covers
-pagination and pull-to-refresh. Typing is separately debounced (300ms,
-cancelling the previous timer) so rapid keystrokes never fire one request
-per character — see `CatalogueViewModelConcurrencyTests` for both a
-timing-independent test of the request-ID guard and a debounce-collapse
-test.
+Networking is implemented using `URLSession` without a third-party networking framework.
 
-**Duplicate order prevention**: `OrderConfirmationViewModel.confirm()` is
-guarded by `isSubmitting` (blocks a second tap while the first is still
-in flight — checked synchronously before the first `await`, so two
-near-simultaneous taps can't both pass the guard) and `isConfirmed`
-(blocks any further attempt once an order exists). Covered by both a
-sequential and a concurrent (`async let`) test.
+The API client communicates with:
 
-### Cache strategy
+```text
+https://dummyjson.com/products
+```
 
-Only the **plain, unfiltered, first page** of the catalogue is cached
-(`FileCatalogueCache`, one JSON file in the caches directory, overwritten
-on every successful fetch of that exact shape). Deliberately simple, per
-the challenge's own guidance against building TTL/stale-while-revalidate
-machinery before the mandatory requirements are done:
+Supported catalogue operations include:
 
-- On a connectivity failure *for that plain first page*, the repository
-  returns the cached page marked `isStale`, and the catalogue shows it
-  with an offline banner instead of a blocking error.
-- Search results, category filters, and pages beyond the first are never
-  cached — offline, those fall through to the error+retry state. This is
-  a conscious trade-off documented here rather than a bug: caching every
-  possible query/page combination would add real complexity for a
-  take-home-scale benefit.
-- Favourites and orders need no such cache — SwiftData is local by
-  construction, so they work fully offline already.
+* Product listing
+* Product search
+* Category filtering
+* Category listing
 
-### Persistence
+Network failures are converted into application-level errors such as:
 
-SwiftData, chosen because it's mandated and the project targets iOS 17+.
-`FavoriteRecord` and `OrderRecord` share one `ModelContainer` (built once
-in `AppDependencies`); `SwiftDataFavoritesRepository` and
-`SwiftDataOrdersRepository` are `@ModelActor` actors wrapping it, so nothing
-in Presentation or Domain ever imports `SwiftData` — persistence is fully
-behind the `FavoritesRepository`/`OrdersRepository` protocol boundary. Both
-`toDomain()` mappers clamp out-of-range values (negative price, NaN,
-empty title) instead of crashing, so a corrupted record can't take the
-app down.
+* Connectivity failure
+* Timeout
+* Invalid response
+* Decoding failure
+* Cancellation
+
+DTOs use defensive decoding so malformed or missing API fields do not cause the application to crash.
+
+## Concurrency
+
+The application uses Swift Concurrency with `async/await`.
+
+View models are isolated to the main actor for UI state updates.
+
+Search requests use a **latest-query-wins** approach. Each reload receives a request identifier, and an outdated response is ignored if a newer request has already started.
+
+Search input is also debounced to avoid sending a network request for every keystroke.
+
+Order confirmation prevents duplicate submissions by guarding both the in-flight submission state and the already-confirmed state.
+
+## Caching & Offline Behaviour
+
+The cache intentionally focuses on the most useful baseline case:
+
+**The last successful, unfiltered first catalogue page is cached locally.**
+
+When the application cannot reach the API:
+
+```text
+Network request
+      ↓
+Connectivity failure
+      ↓
+Cached first page available?
+      ├── Yes → Show cached data + stale/offline indicator
+      └── No  → Show error + Retry
+```
+
+Search results, category-filtered results, and subsequent pages are not cached.
+
+This keeps the cache implementation small and predictable while satisfying the required offline baseline.
+
+Favourites and orders remain available offline because they are persisted locally using Core Data.
+
+## Persistence
+
+The project uses **Core Data** rather than SwiftData.
+
+The minimum deployment target is iOS 16, while SwiftData requires iOS 17. Core Data therefore allows the project to keep the required iOS 16 deployment target.
+
+Persistence is isolated behind repository protocols, so neither the Domain nor Presentation layers depend directly on Core Data.
+
+The Core Data model is created programmatically and contains two main entities:
+
+* `FavoriteEntity`
+* `OrderEntity`
+
+Tests use an in-memory Core Data store so they do not modify the application's persistent data.
+
+## Order Flow
+
+Orders are intentionally local-only.
+
+The flow is:
+
+```text
+Product Details
+      ↓
+Select Quantity
+      ↓
+Order Confirmation
+      ↓
+Review:
+- Product
+- Quantity
+- Subtotal
+- Service Fee (5%)
+- Final Total
+      ↓
+Confirm
+      ↓
+Save locally
+      ↓
+Order History
+```
+
+No real payment processing or backend order creation is implemented because it is outside the assignment scope.
 
 ## Assumptions
 
-- **iOS 17.0 minimum**, not 16 as the challenge text says. SwiftData is
-  explicitly mandated and only exists from iOS 17 — this was the one
-  unavoidable deviation, made rather than stopping to ask, and called out
-  here per the challenge's own "state assumptions" guidance.
-- Minimum-rating filtering is client-side only (dummyjson has no
-  server-side support for it); with a rating filter active, the `total`
-  shown still reflects the server's unfiltered count. See the Cache
-  strategy trade-off above for the analogous search/category-pagination
-  scope decision.
-- Currency is fixed to USD (dummyjson prices are USD; no locale switch
-  was in scope).
-- Orders are local-only "booking-style" records, never sent to a backend
-  — this is explicit in the challenge (no backend order creation).
-
-## Known limitations / what I'd improve with more time
-
-- Offline cache covers only the plain first page (see above) — a
-  keyed-by-query cache (LRU over recent `CatalogueQuery` values) would
-  extend offline support to recent searches/filters.
-- No image pre-fetching/pre-caching beyond `URLCache` sizing at launch;
-  a dedicated prefetch-on-scroll pass would smooth out fast scrolling on
-  a slow connection.
-- `FavoritesStore.toggle` re-fetches the entire favourites list after an
-  add (simplest correct implementation); an incremental local update
-  would avoid the extra SwiftData round-trip for large favourite lists.
-- No pull-to-refresh on Favorites/Orders (both refresh on tab appear
-  instead, which is sufficient for local-only data that only this app
-  writes to).
-- Strict (Swift 6 mode) concurrency checking was left off — the project
-  builds warning-free under Swift 5.9's default checking, but a full
-  Swift 6 migration would be the next step for maximum compile-time
-  data-race safety.
+* Minimum deployment target: iOS 16.0
+* Currency: USD
+* Minimum-rating filtering is performed client-side
+* Orders are local-only
+* DummyJSON is treated as an external/untrusted data source
+* The catalogue cache covers the last successful unfiltered first page
+* Favourite and order persistence is fully local
 
 ## Testing
 
-35 tests across `TripStoreTests/Domain`, `Data`, and `Presentation`.
-Run with `Cmd+U` in Xcode or the `xcodebuild test` command above.
-Highlights:
+The project contains **43 automated tests** covering Domain, Data, and Presentation layers.
 
-- **Domain**: pricing (subtotal/fee/total, 2-decimal rounding including
-  the classic `0.1 + 0.2` case), quantity validation (bounds, stock 0),
-  rating filter.
-- **Data**: `DefaultProductsRepository` against a mock `APIClient` —
-  endpoint selection per query shape, cache save/fallback/rethrow.
-- **Presentation**: catalogue load success/empty/error/loading states,
-  filter/sort/reset behavior, order confirmation totals and duplicate
-  prevention (sequential + concurrent), and the two concurrency
-  guarantees called out above (obsolete-response guard, debounce
-  collapse).
+The test suite includes coverage for:
 
-## AI usage disclosure
+### Domain
 
-This project was built with **Claude Code** (Anthropic), operating
-largely autonomously against a detailed phased specification covering
-architecture, UI, concurrency, testing, and delivery requirements. Claude
-Code:
+* Price calculations
+* Service fee calculation
+* Two-decimal rounding
+* Quantity validation
+* Stock validation
+* Rating filtering
 
-- Wrote all production and test source files, `project.yml`, and this
-  README.
-- Ran `xcodegen generate` and `xcodebuild` (build + test) after every
-  phase, fixing failures before committing.
-- Drove the app in the iOS Simulator (screenshots + taps) to visually
-  verify the catalogue, search/filters, product details, favourites,
-  order confirmation, and order history flows, and to catch a real bug
-  this way: a favourite button nested inside a `NavigationLink`'s label
-  was triggering both the favourite toggle *and* navigation on one tap
-  (see the `fix(catalogue):` commit) — found by exercising the app, not
-  by reading the code.
-- Made and documented the deployment-target deviation (17.0 vs the
-  brief's 16+) and the cache/rating-filter scope trade-offs above, rather
-  than silently working around them.
+### Data
 
-**What to verify before submitting**: every line was generated by AI.
-Per the challenge's own instructions, review the commit history (`git
-log`) and diffs before treating this as your own submission — in
-particular the concurrency guards (`CatalogueViewModel.reload()`'s
-request-ID check, `OrderConfirmationViewModel.confirm()`'s double guard),
-the SwiftData `@ModelActor` repositories, and the cache trade-offs
-documented above, since those are the areas most likely to need judgment
-calls a human reviewer would want to double-check.
+* Repository behaviour
+* Endpoint selection
+* Mock network responses
+* Cache save and fallback behaviour
+* Core Data favourites
+* Core Data orders
+* Duplicate favourite handling
+* Order persistence
+
+### Presentation
+
+* Loading state
+* Success state
+* Empty state
+* Error state
+* Filtering and sorting
+* Reset behaviour
+* Order confirmation
+* Duplicate submission prevention
+* Search concurrency
+* Search debounce behaviour
+
+Tests can be run with:
+
+```text
+⌘ + U
+```
+
+or using the `xcodebuild test` command described in the Setup section.
+
+## Trade-offs & Known Limitations
+
+### Catalogue cache
+
+Only the first unfiltered catalogue page is cached.
+
+A more advanced implementation could use a query-keyed cache with an LRU strategy for recent searches and filters.
+
+### Image loading
+
+The implementation relies on standard image loading and `URLCache`. A dedicated prefetching strategy could improve scrolling performance further on slow connections.
+
+### Favourites
+
+After toggling a favourite, the current implementation reloads the favourites collection. An incremental update could reduce the extra persistence round-trip for larger datasets.
+
+### Refresh behaviour
+
+Favourites and order history refresh when their screens appear rather than exposing pull-to-refresh, since they are local-only data owned by the application.
+
+### Concurrency checking
+
+The project uses Swift Concurrency and main-actor isolation, while a future iteration could enable stricter Swift 6 concurrency checking throughout the project.
+
+## What I Would Improve Next
+
+With additional development time, I would consider:
+
+1. Query-aware offline caching
+2. Image prefetching
+3. More granular local state updates for favourites
+4. UI tests for the main catalogue-to-order journey
+5. Structured logging and request instrumentation
+6. Additional accessibility validation
+7. Stricter Swift 6 concurrency checking
+8. Snapshot testing for important UI states
+
+## AI Usage Disclosure
+
+AI tools, including Claude Code, were used during the development process for implementation assistance, code generation, refactoring, test generation, and debugging.
+
+The submitted project was reviewed against the assignment requirements, including the architecture, persistence approach, networking, concurrency behaviour, automated tests, and documented trade-offs.
+
+The final submission remains the responsibility of the candidate, including understanding and verifying the submitted implementation.
+
+## Submission Checklist
+
+* [x] iOS 16+ deployment target
+* [x] SwiftUI implementation
+* [x] MVVM + Clean Architecture
+* [x] Dependency injection
+* [x] URLSession networking
+* [x] Async/await concurrency
+* [x] Search, filtering, and sorting
+* [x] Pagination
+* [x] Favourites persistence
+* [x] Local order flow
+* [x] Core Data persistence
+* [x] Offline catalogue fallback
+* [x] Automated tests
+* [x] README documentation
+* [x] No API keys or secrets required
