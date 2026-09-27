@@ -15,31 +15,96 @@ struct CatalogueView: View {
 
     var body: some View {
         NavigationStack {
-            content
-                .navigationTitle("TripStore")
-                .searchable(text: $viewModel.searchText, prompt: "Search products")
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            isShowingFilters = true
-                        } label: {
-                            Image(systemName: viewModel.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                        }
-                        .accessibilityLabel("Filter and sort")
-                        .accessibilityHint(viewModel.hasActiveFilters ? "Filters are active" : "No filters active")
+            VStack(spacing: 0) {
+                searchAndFilterBar
+                categoryChipsRow
+                content
+            }
+            .navigationTitle("TripStore")
+            .sheet(isPresented: $isShowingFilters) {
+                FilterSheet(viewModel: viewModel)
+            }
+            .navigationDestination(for: Product.self) { product in
+                ProductDetailsView(product: product)
+            }
+            .navigationDestination(for: OrderDraft.self) { draft in
+                OrderConfirmationView(draft: draft, ordersRepository: ordersRepository)
+            }
+            .task { await viewModel.loadInitial() }
+        }
+    }
+
+    private var searchAndFilterBar: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search products", text: $viewModel.searchText)
+                    .textFieldStyle(.plain)
+                    .submitLabel(.search)
+                    .accessibilityLabel("Search products")
+                if !viewModel.searchText.isEmpty {
+                    Button {
+                        viewModel.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            Button {
+                isShowingFilters = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(viewModel.hasActiveFilters ? Color.white : Color.accentColor)
+                    .padding(10)
+                    .background(
+                        viewModel.hasActiveFilters ? Color.accentColor : Color(.secondarySystemBackground),
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+            }
+            .accessibilityLabel("Filter and sort")
+            .accessibilityHint(viewModel.hasActiveFilters ? "Filters are active" : "No filters active")
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+    private var categoryChipsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                categoryChip(title: "All", isSelected: viewModel.selectedCategory == nil) {
+                    Task { await viewModel.setCategory(nil) }
+                }
+                ForEach(viewModel.availableCategories, id: \.self) { category in
+                    categoryChip(title: category.capitalized, isSelected: viewModel.selectedCategory == category) {
+                        Task { await viewModel.setCategory(category) }
                     }
                 }
-                .sheet(isPresented: $isShowingFilters) {
-                    FilterSheet(viewModel: viewModel)
-                }
-                .navigationDestination(for: Product.self) { product in
-                    ProductDetailsView(product: product)
-                }
-                .navigationDestination(for: OrderDraft.self) { draft in
-                    OrderConfirmationView(draft: draft, ordersRepository: ordersRepository)
-                }
-                .task { await viewModel.loadInitial() }
+            }
+            .padding(.horizontal, 16)
         }
+        .padding(.bottom, 8)
+    }
+
+    private func categoryChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.accentColor : Color(.secondarySystemBackground), in: Capsule())
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     @ViewBuilder
