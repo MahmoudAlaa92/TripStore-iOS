@@ -119,4 +119,56 @@ final class CatalogueViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.hasActiveFilters)
         XCTAssertEqual(viewModel.minRating, 0)
     }
+
+    /// The core connectivity-recovery requirement: a load that failed because
+    /// the device was offline must retry on its own once the network monitor
+    /// reports connectivity is back, with no user action required.
+    func test_connectivityRestored_afterConnectivityError_automaticallyReloads() async {
+        let repository = MockProductsRepository()
+        await repository.setResponseProvider { _, _, _ in throw AppError.connectivity }
+        let networkMonitor = MockNetworkMonitor()
+        let viewModel = CatalogueViewModel(
+            repository: repository,
+            categoriesRepository: MockCategoriesRepository(),
+            networkMonitor: networkMonitor
+        )
+
+        await viewModel.loadInitial()
+        XCTAssertEqual(viewModel.loadState, .error(.connectivity))
+
+        await repository.setResponseProvider { _, _, _ in
+            CataloguePage(products: [TestFixtures.product(id: 1)], total: 1, skip: 0, limit: 20, isStale: false)
+        }
+        networkMonitor.simulateConnectivityRestored()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(viewModel.loadState, .loaded)
+        XCTAssertEqual(viewModel.products.count, 1)
+    }
+
+    /// Guards against retry loops / redundant traffic: a connectivity
+    /// restoration signal that arrives while the catalogue is already
+    /// loaded (including the stale-cache case) must not trigger another
+    /// fetch, preserving the existing offline/cache behavior.
+    func test_connectivityRestored_whileAlreadyLoaded_doesNotTriggerExtraRequest() async {
+        let repository = MockProductsRepository()
+        await repository.setResponseProvider { _, _, _ in
+            CataloguePage(products: [TestFixtures.product(id: 1)], total: 1, skip: 0, limit: 20, isStale: false)
+        }
+        let networkMonitor = MockNetworkMonitor()
+        let viewModel = CatalogueViewModel(
+            repository: repository,
+            categoriesRepository: MockCategoriesRepository(),
+            networkMonitor: networkMonitor
+        )
+
+        await viewModel.loadInitial()
+        XCTAssertEqual(viewModel.loadState, .loaded)
+
+        networkMonitor.simulateConnectivityRestored()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        let queryCount = await repository.receivedQueries.count
+        XCTAssertEqual(queryCount, 1, "A successful load must not be re-fetched just because connectivity was restored")
+    }
 }

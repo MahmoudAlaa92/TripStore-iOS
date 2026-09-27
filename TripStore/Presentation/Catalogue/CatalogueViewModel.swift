@@ -27,10 +27,12 @@ final class CatalogueViewModel: ObservableObject {
 
     private let repository: ProductsRepository
     private let categoriesRepository: CategoriesRepository
+    private let networkMonitor: NetworkMonitor?
     private let pageSize: Int
     private let searchDebounceNanoseconds: UInt64
     private var total = 0
     private var searchDebounceTask: Task<Void, Never>?
+    private var connectivityObservationTask: Task<Void, Never>?
 
     /// Guards against an in-flight request (base load, refresh, pagination, or
     /// a search/filter change) applying its result after a *newer* request
@@ -41,13 +43,19 @@ final class CatalogueViewModel: ObservableObject {
     init(
         repository: ProductsRepository,
         categoriesRepository: CategoriesRepository,
+        networkMonitor: NetworkMonitor? = nil,
         pageSize: Int = 20,
         searchDebounceNanoseconds: UInt64 = 300_000_000
     ) {
         self.repository = repository
         self.categoriesRepository = categoriesRepository
+        self.networkMonitor = networkMonitor
         self.pageSize = pageSize
         self.searchDebounceNanoseconds = searchDebounceNanoseconds
+    }
+
+    deinit {
+        connectivityObservationTask?.cancel()
     }
 
     /// What the grid actually renders: the fetched page with the client-side
@@ -74,6 +82,7 @@ final class CatalogueViewModel: ObservableObject {
     }
 
     func loadInitial() async {
+        observeConnectivityRestoration()
         if categories.isEmpty {
             categories = (try? await categoriesRepository.fetchCategories()) ?? []
         }
@@ -116,6 +125,22 @@ final class CatalogueViewModel: ObservableObject {
             try? await Task.sleep(nanoseconds: searchDebounceNanoseconds)
             guard !Task.isCancelled else { return }
             await self?.reload()
+        }
+    }
+
+    /// Starts listening for connectivity coming back once per view model
+    /// lifetime. Only reloads when the last attempt actually failed due to
+    /// connectivity — a successful load (including one serving stale cached
+    /// data) is left alone, so the existing offline/cache behavior is
+    /// unaffected and a restored connection can't trigger repeated fetches.
+    private func observeConnectivityRestoration() {
+        guard connectivityObservationTask == nil, let networkMonitor else { return }
+        let stream = networkMonitor.connectivityRestored()
+        connectivityObservationTask = Task { [weak self] in
+            for await _ in stream {
+                guard let self, self.loadState == .error(.connectivity) else { continue }
+                await self.reload()
+            }
         }
     }
 

@@ -7,6 +7,7 @@ import Foundation
 final class AppDependencies {
     let apiClient: APIClient
     let catalogueCache: CatalogueCache
+    let networkMonitor: NetworkMonitor
     let productsRepository: ProductsRepository
     let categoriesRepository: CategoriesRepository
     let coreDataStack: CoreDataStack
@@ -18,6 +19,7 @@ final class AppDependencies {
         let apiClient = URLSessionAPIClient()
         self.apiClient = apiClient
         self.catalogueCache = FileCatalogueCache()
+        self.networkMonitor = NWPathNetworkMonitor()
         self.productsRepository = DefaultProductsRepository(apiClient: apiClient, cache: catalogueCache)
         self.categoriesRepository = DefaultCategoriesRepository(apiClient: apiClient)
 

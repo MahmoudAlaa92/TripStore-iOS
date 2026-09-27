@@ -8,7 +8,8 @@ struct RootTabView: View {
             CatalogueView(
                 viewModel: CatalogueViewModel(
                     repository: dependencies.productsRepository,
-                    categoriesRepository: dependencies.categoriesRepository
+                    categoriesRepository: dependencies.categoriesRepository,
+                    networkMonitor: dependencies.networkMonitor
                 ),
                 ordersRepository: dependencies.ordersRepository
             )
