@@ -28,6 +28,7 @@ struct FavoritesView: View {
                             }
                         }
                     }
+                    .refreshable { await favoritesStore.reload() }
                 }
             }
             .navigationTitle("Favorites")
